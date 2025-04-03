@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Deep Sea</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Startmenu -->
+<div id="menu">
+  <h1>Deep Sea Survival</h1>
+  <p>Overleef, groei en gebruik vaardigheden!</p>
+  <button onclick="startGame()">Start Game</button>
+</div>
+
+<!-- Canvas -->
+<canvas id="gameCanvas"></canvas>
+
+<!-- HUD -->
+<div id="hud">
+  Score: <span id="scoreText">0</span> |
+  Health: <span id="health">3</span> |
+  Coins: <span id="coins">0</span>
+</div>
+
+<!-- Power-up knoppen -->
+<div id="skillButtons">
+  <button id="speedBtn" class="skill-btn" onclick="activateSkill('speedBoost')">Snelheid (V)</button>
+  <button id="invisBtn" class="skill-btn" onclick="activateSkill('invisible')">Onzichtbaar (B)</button>
+  <button id="shieldBtn" class="skill-btn" onclick="activateSkill('shield')">Schild (F)</button>
+</div>
+
+<!-- Pauzemenu -->
+<div id="pauseMenu">
+  <h2>Gepauzeerd</h2>
+  <button onclick="resumeGame()">Doorgaan</button>
+  <button onclick="goToMainMenu()">Terug naar Startmenu</button>
+</div>
+
+<!-- Script -->
+<script src="script.js"></script>
+</body>
+</html>
