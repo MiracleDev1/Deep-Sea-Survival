@@ -39,6 +39,40 @@ let player = {
 let keys = {};
 let enemies = [], walls = [];
 
+// === CAMERA VIEW LOGIC ===
+let camX, camY, camWidth, camHeight;
+
+function isVisible(x, y, size = 0) {
+  return (
+    x + size > camX &&
+    x - size < camX + camWidth &&
+    y + size > camY &&
+    y - size < camY + camHeight
+  );
+}
+
+let ambientLights = [];
+for (let i = 0; i < 80; i++) {
+  ambientLights.push({
+    x: Math.random() * WORLD_WIDTH,
+    y: Math.random() * WORLD_HEIGHT,
+    baseRadius: Math.random() * 3 + 2,
+    pulseOffset: Math.random() * 1000,
+    opacity: Math.random() * 0.3 + 0.2,
+    speed: Math.random() * 0.5 + 0.2
+  });
+}
+
+let fogParticles = [];
+for (let i = 0; i < 100; i++) {
+  fogParticles.push({
+    x: Math.random() * WORLD_WIDTH,
+    y: Math.random() * WORLD_HEIGHT,
+    radius: 100 + Math.random() * 200,
+    opacity: 0.02 + Math.random() * 0.02
+  });
+}
+
 const skillLabels = {
   speedBoost: "Snelheid",
   invisible: "Onzichtbaar",
@@ -65,7 +99,9 @@ document.addEventListener("keyup", e => keys[e.key] = false);
 
 // === Game Start
 function startGame() {
-  document.getElementById("menu").style.display = "none";
+  const menu = document.getElementById("menu");
+  if (menu) menu.style.display = "none";
+
   isGameRunning = true;
   generateWalls();
   generateBorders();
@@ -78,6 +114,10 @@ function startGame() {
   }
 
   gameLoop();
+}
+
+function goToMainMenu() {
+  window.location.href = "index.html";
 }
 
 function pauseGame() {
@@ -199,23 +239,47 @@ function rectCircleColliding(circ, rect) {
 function update() {
   if (!isGameRunning || isPaused) return;
 
-  const oldX = player.x, oldY = player.y;
+  // === Richting vector berekenen
+  let dx = 0;
+  let dy = 0;
+  if (keys["ArrowLeft"]) dx -= 1;
+  if (keys["ArrowRight"]) dx += 1;
+  if (keys["ArrowUp"]) dy -= 1;
+  if (keys["ArrowDown"]) dy += 1;
 
-  if (keys["ArrowUp"]) player.y -= player.speed;
-  if (keys["ArrowDown"]) player.y += player.speed;
-  if (keys["ArrowLeft"]) player.x -= player.speed;
-  if (keys["ArrowRight"]) player.x += player.speed;
+  // === Normaliseren zodat diagonaal niet sneller is
+  const length = Math.hypot(dx, dy);
+  if (length > 0) {
+    dx /= length;
+    dy /= length;
+  }
 
+  // === Nieuwe positie berekenen
+  const newX = player.x + dx * player.speed;
+  const newY = player.y + dy * player.speed;
+
+  // === Collision check voor X en Y apart
+  let testX = { ...player, x: newX };
+  let testY = { ...player, y: newY };
+
+  let collidedX = walls.some(w => rectCircleColliding(testX, w));
+  let collidedY = walls.some(w => rectCircleColliding(testY, w));
+
+  const oldX = player.x;
+  const oldY = player.y;
+
+  if (!collidedX) player.x = newX;
+  if (!collidedY) player.y = newY;
+
+  // === Clamp binnen wereld
   player.x = Math.max(player.size, Math.min(WORLD_WIDTH - player.size, player.x));
   player.y = Math.max(player.size, Math.min(WORLD_HEIGHT - player.size, player.y));
-  player.angle = Math.atan2(player.y - oldY, player.x - oldX);
 
-  // === Collision met muren
-  for (let wall of walls) {
-    if (rectCircleColliding(player, wall)) {
-      player.x = oldX;
-      player.y = oldY;
-    }
+  // === Richting bijwerken alleen als speler beweegt
+  const dxMoved = player.x - oldX;
+  const dyMoved = player.y - oldY;
+  if (dxMoved !== 0 || dyMoved !== 0) {
+    player.angle = Math.atan2(dyMoved, dxMoved);
   }
 
   // === Vijand updates
@@ -267,7 +331,7 @@ function update() {
     }
   }
 
-  // === Motion blur trail: alleen toevoegen als speler in beeld is
+  // === Motion blur trail
   const visibleLeft = player.x > (player.x - canvas.width / 2) - 300;
   const visibleRight = player.x < (player.x + canvas.width / 2) + 300;
   const visibleTop = player.y > (player.y - canvas.height / 2) - 300;
@@ -285,40 +349,80 @@ function update() {
   }
 }
 
-function draw() {
-  if (!isGameRunning || isPaused) return;
-
-  // Smooth zoom
-  let targetZoom = player.skills.speedBoost ? 0.85 : 1;
-  currentZoom += (targetZoom - currentZoom) * 0.08;
-  const zoom = currentZoom;
-
-  const camX = player.x - (canvas.width / 2) / zoom;
-  const camY = player.y - (canvas.height / 2) / zoom;
-
+function drawWaterDistortion(camX, camY, zoom) {
   ctx.save();
-  ctx.setTransform(zoom, 0, 0, zoom, -camX * zoom, -camY * zoom);
+  ctx.globalAlpha = 0.08;
+  const waveSize = 20;
+  const xOffset = Math.sin(Date.now() / 700) * waveSize;
+  const yOffset = Math.cos(Date.now() / 900) * waveSize;
+  ctx.translate(xOffset, yOffset);
+  ctx.fillStyle = "#1a2e40";
+  ctx.fillRect(camX, camY, canvas.width / zoom, canvas.height / zoom);
+  ctx.restore();
+}
 
-  // Achtergrond
+function drawBackground(camX, camY, zoom) {
   ctx.clearRect(camX, camY, canvas.width / zoom, canvas.height / zoom);
   ctx.fillStyle = "#0b1e2c";
   ctx.fillRect(camX, camY, canvas.width / zoom, canvas.height / zoom);
+}
 
-  // Muren
+function drawParallaxPlants(camX, camY, zoom) {
+  const layers = 3;
+  for (let i = 0; i < layers; i++) {
+    const depth = 0.2 + i * 0.15;
+    const density = 20;
+    for (let j = 0; j < density; j++) {
+      const x = (j * 500 + Math.sin(Date.now() / (1000 + i * 500) + j) * 100) % WORLD_WIDTH;
+      const y = (j * 400 + Math.cos(Date.now() / (1200 + i * 400) + j) * 100) % WORLD_HEIGHT;
+      const plantX = x - camX * depth;
+      const plantY = y - camY * depth;
+      ctx.beginPath();
+      ctx.arc(plantX, plantY, 30 - i * 6, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(30, 80, 60, ${0.05 + i * 0.05})`;
+      ctx.fill();
+    }
+  }
+}
+
+function drawAmbientLights() {
+  for (let light of ambientLights) {
+    light.y += light.speed;
+    if (light.y > WORLD_HEIGHT) light.y = 0;
+
+    const pulse = Math.sin((Date.now() + light.pulseOffset) / 1000) * 1.5;
+    const radius = light.baseRadius + pulse;
+
+    ctx.beginPath();
+    ctx.arc(light.x, light.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(173,216,230,${light.opacity})`;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = "#add8e6";
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+}
+
+function drawWalls() {
   for (let wall of walls) {
     ctx.fillStyle = wall.color;
     ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
   }
+}
 
-  // Vijanden
+function drawEnemies() {
   for (let e of enemies) {
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = e.color;
     ctx.beginPath();
     ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
     ctx.fillStyle = e.color;
     ctx.fill();
+    ctx.shadowBlur = 0;
   }
+}
 
-  // === Ghost trail effect bij boost (echte motion blur feel)
+function drawPlayerTrail() {
   if (player.skills.speedBoost) {
     for (let i = 1; i < playerTrail.length; i++) {
       const ghost = playerTrail[i];
@@ -329,14 +433,24 @@ function draw() {
       ctx.fill();
     }
   }
+}
 
-  // === Speler
+function drawPlayer() {
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = "orange";
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
-  ctx.fillStyle = player.skills.invisible ? "rgba(255,165,0,0.2)" : "orange";
+  if (player.skills.invisible) {
+    const pulse = 0.2 + Math.sin(Date.now() / 200) * 0.1;
+    ctx.fillStyle = `rgba(255,165,0,${pulse})`;
+  } else {
+    ctx.fillStyle = "orange";
+  }
   ctx.fill();
+  ctx.shadowBlur = 0;
+}
 
-  // === Shield
+function drawShield() {
   if (player.skills.shield) {
     const pulse = Math.sin(Date.now() / 200) * 5;
     const shieldRadius = player.size + 15 + pulse;
@@ -346,15 +460,47 @@ function draw() {
     ctx.lineWidth = 4;
     ctx.stroke();
   }
+}
 
-  // Donkerte bij diepte
+function drawDepthFog(camX, camY, zoom) {
   const darkness = Math.min(1, player.y / WORLD_HEIGHT);
   ctx.fillStyle = `rgba(0, 0, 0, ${darkness * 0.6})`;
   ctx.fillRect(camX, camY, canvas.width / zoom, canvas.height / zoom);
+}
 
-  ctx.restore(); // einde camera/zoom
+function drawSpotlight() {
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  const spotlight = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 300);
+  spotlight.addColorStop(0, "rgba(255,255,200,0.3)");
+  spotlight.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = spotlight;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+}
 
-  // === Radiaal overlay motion blur effect tijdens boost (licht, fullscreen)
+function drawBeamCone() {
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  ctx.save();
+  ctx.translate(centerX, centerY);
+  ctx.rotate(player.angle);
+  const coneGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 350);
+  coneGradient.addColorStop(0, "rgba(255, 255, 180, 0.25)");
+  coneGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = coneGradient;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(200, -100);
+  ctx.lineTo(200, 100);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawSpeedOverlay() {
   if (player.skills.speedBoost) {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
@@ -364,13 +510,59 @@ function draw() {
     ctx.fillStyle = streak;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
+}
 
-  // HUD
+function drawVignette() {
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  ctx.save();
+  const vignette = ctx.createRadialGradient(centerX, centerY, canvas.width / 3, centerX, centerY, canvas.width / 1.2);
+  vignette.addColorStop(0, "rgba(0, 0, 0, 0)");
+  vignette.addColorStop(1, "rgba(0, 0, 0, 0.7)");
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+}
+
+function drawHUD() {
   document.getElementById("scoreText").innerText = player.score;
   document.getElementById("health").innerText = player.health;
   document.getElementById("coins").innerText = player.coins;
-
   updateCooldownUI();
+}
+
+function draw() {
+  if (!isGameRunning || isPaused) return;
+
+  // === Smooth zoom
+  let targetZoom = player.skills.speedBoost ? 0.85 : 1;
+  currentZoom += (targetZoom - currentZoom) * 0.08;
+  const zoom = currentZoom;
+
+  const camX = player.x - (canvas.width / 2) / zoom;
+  const camY = player.y - (canvas.height / 2) / zoom;
+
+  ctx.save();
+  ctx.setTransform(zoom, 0, 0, zoom, -camX * zoom, -camY * zoom);
+
+  drawWaterDistortion(camX, camY, zoom);
+  drawBackground(camX, camY, zoom);
+  drawParallaxPlants(camX, camY, zoom);
+  drawAmbientLights();
+  drawWalls();
+  drawEnemies();
+  drawPlayerTrail();
+  drawPlayer();
+  drawShield();
+  drawDepthFog(camX, camY, zoom);
+
+  ctx.restore(); // einde camera
+
+  drawSpotlight();
+  drawBeamCone();
+  drawSpeedOverlay();
+  drawVignette();
+  drawHUD();
 }
 
 function gameLoop() {

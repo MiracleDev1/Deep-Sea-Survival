@@ -8,7 +8,7 @@ html, body {
 }
 canvas {
   display: block;
-  background: #0b1e2c;
+  background: radial-gradient(circle at center, #0b1e2c 0%, #000 100%);
 }
 
 /* HUD rechtsboven */
