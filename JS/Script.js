@@ -15,6 +15,31 @@ let playerTrail = []; // Voor motion blur trail effect
 let isGameRunning = false;
 let isPaused = false;
 
+const fishFrames = [];
+const totalFrames = 30;
+let loadedFrames = 0;
+
+let camOffset = { x: 0, y: 0 };
+
+const shieldIcon = new Image();
+shieldIcon.src = "../Assets/images/shield.png";
+
+for (let i = 100; i <= 129; i++) {
+  const img = new Image();
+  img.src = `../Assets/Images/Guppy_${i}.gif`;
+  img.onload = () => {
+    loadedFrames++;
+    if (loadedFrames === totalFrames) {
+      startGame();  // Start pas nadat alle afbeeldingen geladen zijn
+    }
+  };
+  fishFrames.push(img);
+}
+
+let currentFrame = 0;
+let frameDelay = 80; // Animatiesnelheid (ms per frame)
+let lastFrameUpdate = Date.now();
+
 let player = {
   x: WORLD_WIDTH / 2,
   y: 300,
@@ -103,6 +128,7 @@ function startGame() {
   if (menu) menu.style.display = "none";
 
   isGameRunning = true;
+
   generateWalls();
   generateBorders();
   for (let i = 0; i < 30; i++) spawnEnemy();
@@ -239,26 +265,24 @@ function rectCircleColliding(circ, rect) {
 function update() {
   if (!isGameRunning || isPaused) return;
 
-  // === Richting vector berekenen
+  // === Richting vector
   let dx = 0;
   let dy = 0;
+
   if (keys["ArrowLeft"]) dx -= 1;
   if (keys["ArrowRight"]) dx += 1;
   if (keys["ArrowUp"]) dy -= 1;
   if (keys["ArrowDown"]) dy += 1;
 
-  // === Normaliseren zodat diagonaal niet sneller is
   const length = Math.hypot(dx, dy);
   if (length > 0) {
     dx /= length;
     dy /= length;
   }
 
-  // === Nieuwe positie berekenen
   const newX = player.x + dx * player.speed;
   const newY = player.y + dy * player.speed;
 
-  // === Collision check voor X en Y apart
   let testX = { ...player, x: newX };
   let testY = { ...player, y: newY };
 
@@ -271,11 +295,16 @@ function update() {
   if (!collidedX) player.x = newX;
   if (!collidedY) player.y = newY;
 
-  // === Clamp binnen wereld
+  // Smooth camera offset
+  const offsetStrength = 80;
+  const lerpSpeed = 0.025;
+  const targetOffset = { x: dx * offsetStrength, y: dy * offsetStrength };
+  camOffset.x += (targetOffset.x - camOffset.x) * lerpSpeed;
+  camOffset.y += (targetOffset.y - camOffset.y) * lerpSpeed;
+
   player.x = Math.max(player.size, Math.min(WORLD_WIDTH - player.size, player.x));
   player.y = Math.max(player.size, Math.min(WORLD_HEIGHT - player.size, player.y));
 
-  // === Richting bijwerken alleen als speler beweegt
   const dxMoved = player.x - oldX;
   const dyMoved = player.y - oldY;
   if (dxMoved !== 0 || dyMoved !== 0) {
@@ -290,62 +319,89 @@ function update() {
     const dirY = (player.y - e.y) / dist;
     const oldX = e.x, oldY = e.y;
 
-    if (!player.skills.invisible && dist < 400) {
+    if (!player.skills.invisible && dist < 500) {
       if (e.type === "fish") {
-        e.x -= dirX * e.speed;
-        e.y -= dirY * e.speed;
-      } else {
-        e.x += dirX * e.speed;
-        e.y += dirY * e.speed;
-      }
-    } else {
-      e.x += Math.cos(e.angle) * e.speed * 0.5;
-      e.y += Math.sin(e.angle) * e.speed * 0.5;
-    }
-
-    for (let wall of walls) {
-      if (rectCircleColliding(e, wall)) {
-        e.x = oldX;
-        e.y = oldY;
-        e.angle += Math.PI;
-      }
-    }
-
-    // === Botsing speler vs vijand
-    if (dist < player.size + e.size) {
-      if (player.size >= e.size) {
-        player.score++;
-        player.coins += 5;
-        player.size += 1.5;
-        enemies.splice(i, 1);
-        spawnEnemy();
-      } else if (e.type === "shark" && !player.skills.shield) {
-        player.health--;
-        enemies.splice(i, 1);
-        spawnEnemy();
-        if (player.health <= 0) {
-          alert("Game Over! Score: " + player.score);
-          window.location.reload();
+        // Vlucht weg als speler dichtbij is
+        const fleeAngle = Math.atan2(e.y - player.y, e.x - player.x);
+        let da = fleeAngle - e.angle;
+        if (da > Math.PI) da -= 2 * Math.PI;
+        if (da < -Math.PI) da += 2 * Math.PI;
+        e.angle += da * 0.05;
+    
+        e.x += Math.cos(e.angle) * e.speed * 0.6;
+        e.y += Math.sin(e.angle) * e.speed * 0.6;
+    
+      } else if (e.type === "shark") {
+        if (player.size < e.size) {
+          // Alleen aanvallen als speler kleiner is
+          const chaseAngle = Math.atan2(player.y - e.y, player.x - e.x);
+          let da = chaseAngle - e.angle;
+          if (da > Math.PI) da -= 2 * Math.PI;
+          if (da < -Math.PI) da += 2 * Math.PI;
+          e.angle += da * 0.07;
+    
+          e.x += Math.cos(e.angle) * e.speed * 0.9;
+          e.y += Math.sin(e.angle) * e.speed * 0.9;
+        } else {
+          // Speler is te groot → vluchten
+          const fleeAngle = Math.atan2(e.y - player.y, e.x - player.x);
+          let da = fleeAngle - e.angle;
+          if (da > Math.PI) da -= 2 * Math.PI;
+          if (da < -Math.PI) da += 2 * Math.PI;
+          e.angle += da * 0.05;
+    
+          e.x += Math.cos(e.angle) * e.speed * 0.5;
+          e.y += Math.sin(e.angle) * e.speed * 0.5;
         }
       }
+    } else {
+      // Idle gedrag met lichte bochtjes
+      e.angle += Math.sin(Date.now() / 600 + i) * 0.01;
+      e.x += Math.cos(e.angle) * e.speed * 0.4;
+      e.y += Math.sin(e.angle) * e.speed * 0.4;
     }
+    
+    // === Slimme muur-bounce
+    // === Detecteer muren rondom de vijand
+let avoidanceAngle = 0;
+let nearbyWall = false;
+
+for (let wall of walls) {
+  // Check of vijand dichtbij de muur is (binnen 50 pixels)
+  const closestX = Math.max(wall.x, Math.min(e.x, wall.x + wall.w));
+  const closestY = Math.max(wall.y, Math.min(e.y, wall.y + wall.h));
+  const distToWall = Math.hypot(e.x - closestX, e.y - closestY);
+
+  if (distToWall < e.size + 20) {
+    nearbyWall = true;
+
+    // Bereken afstotingsrichting vanaf muur
+    const angleFromWall = Math.atan2(e.y - closestY, e.x - closestX);
+    avoidanceAngle += angleFromWall;
   }
+}
 
-  // === Motion blur trail
-  const visibleLeft = player.x > (player.x - canvas.width / 2) - 300;
-  const visibleRight = player.x < (player.x + canvas.width / 2) + 300;
-  const visibleTop = player.y > (player.y - canvas.height / 2) - 300;
-  const visibleBottom = player.y < (player.y + canvas.height / 2) + 300;
+if (nearbyWall) {
+  // Gemiddelde afstotingshoek gebruiken
+  avoidanceAngle /= 1;
 
-  if (player.skills.speedBoost && visibleLeft && visibleRight && visibleTop && visibleBottom) {
+  // Mix met huidige richting → glijd weg
+  let da = avoidanceAngle - e.angle;
+  if (da > Math.PI) da -= 2 * Math.PI;
+  if (da < -Math.PI) da += 2 * Math.PI;
+  e.angle += da * 0.1; // zachte correctie
+}
+  }
+  // === Motion trail
+  if (player.skills.speedBoost) {
     playerTrail.unshift({
       x: player.x,
       y: player.y,
-      size: player.size,
       angle: player.angle,
+      frame: currentFrame,
       time: Date.now()
     });
-    if (playerTrail.length > 10) playerTrail.pop();
+    if (playerTrail.length > 12) playerTrail.pop();
   }
 }
 
@@ -373,13 +429,21 @@ function drawParallaxPlants(camX, camY, zoom) {
     const depth = 0.2 + i * 0.15;
     const density = 20;
     for (let j = 0; j < density; j++) {
-      const x = (j * 500 + Math.sin(Date.now() / (1000 + i * 500) + j) * 100) % WORLD_WIDTH;
-      const y = (j * 400 + Math.cos(Date.now() / (1200 + i * 400) + j) * 100) % WORLD_HEIGHT;
+      const baseX = j * 400 + i * 100;
+      const baseY = j * 300 + i * 200;
+
+      const wiggleX = Math.sin(Date.now() / (1000 + i * 500) + j) * 40;
+      const wiggleY = Math.cos(Date.now() / (1200 + i * 400) + j) * 30;
+
+      const x = baseX + wiggleX;
+      const y = baseY + wiggleY;
+
       const plantX = x - camX * depth;
       const plantY = y - camY * depth;
+
       ctx.beginPath();
-      ctx.arc(plantX, plantY, 30 - i * 6, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(30, 80, 60, ${0.05 + i * 0.05})`;
+      ctx.arc(plantX, plantY, 28 - i * 5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(20, 100, 80, ${0.04 + i * 0.04})`;
       ctx.fill();
     }
   }
@@ -423,43 +487,118 @@ function drawEnemies() {
 }
 
 function drawPlayerTrail() {
-  if (player.skills.speedBoost) {
-    for (let i = 1; i < playerTrail.length; i++) {
-      const ghost = playerTrail[i];
-      const age = i / playerTrail.length;
-      ctx.beginPath();
-      ctx.arc(ghost.x, ghost.y, ghost.size, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,165,0,${0.08 * (1 - age)})`;
-      ctx.fill();
-    }
+  if (!player.skills.speedBoost || playerTrail.length === 0) return;
+
+  ctx.save();
+  for (let i = playerTrail.length - 1; i >= 0; i--) {
+    const ghost = playerTrail[i];
+    const age = 1 - i / playerTrail.length;
+    const frame = fishFrames[ghost.frame];
+    if (!frame.complete) continue;
+
+    ctx.save();
+    ctx.translate(ghost.x, ghost.y);
+    let flip = (Math.cos(ghost.angle) < 0) ? -1 : 1;
+    ctx.scale(flip, 1);
+    ctx.globalAlpha = 0.05 * age;
+
+    const scale = 3.5;
+    ctx.drawImage(
+      frame,
+      -player.size * scale,
+      -player.size * scale,
+      player.size * 2 * scale,
+      player.size * 2 * scale
+    );
+
+    // Bubbels
+    ctx.beginPath();
+    ctx.arc(0, 0, 3 + Math.random() * 3, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+    ctx.fill();
+
+    ctx.restore();
   }
+  ctx.restore();
 }
 
 function drawPlayer() {
-  ctx.shadowBlur = 20;
-  ctx.shadowColor = "orange";
-  ctx.beginPath();
-  ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+  ctx.save();
+  ctx.translate(player.x, player.y);
+
+  let flip = (Math.cos(player.angle) < 0) ? -1 : 1;
+  ctx.scale(flip, 1);
+
+  const imageScaleFactor = 3.5;
+
+  // === Transparantie als onzichtbaar actief is
   if (player.skills.invisible) {
-    const pulse = 0.2 + Math.sin(Date.now() / 200) * 0.1;
-    ctx.fillStyle = `rgba(255,165,0,${pulse})`;
-  } else {
-    ctx.fillStyle = "orange";
+    const shimmer = 0.3 + Math.sin(Date.now() / 150) * 0.2; // beetje shimmer effect
+    ctx.globalAlpha = shimmer;
   }
-  ctx.fill();
-  ctx.shadowBlur = 0;
+
+  ctx.drawImage(
+    fishFrames[currentFrame],
+    -player.size * imageScaleFactor,
+    -player.size * imageScaleFactor,
+    player.size * 2 * imageScaleFactor,
+    player.size * 2 * imageScaleFactor
+  );
+
+  ctx.restore();
+
+  // Frames updaten
+  const now = Date.now();
+  if (now - lastFrameUpdate > frameDelay) {
+    currentFrame = (currentFrame + 1) % totalFrames;
+    lastFrameUpdate = now;
+  }
 }
 
 function drawShield() {
-  if (player.skills.shield) {
-    const pulse = Math.sin(Date.now() / 200) * 5;
-    const shieldRadius = player.size + 15 + pulse;
+  if (!player.skills.shield) return;
+
+  const time = Date.now();
+
+  ctx.save();
+  ctx.translate(player.x, player.y);
+
+  // === Glowing, draaiende cirkels achter vis
+  for (let i = 0; i < 3; i++) {
+    const pulse = Math.sin((time + i * 300) / 300) * 4;
+    const radius = player.size * (1.8 + i * 0.2) + pulse;
+    const rotation = ((time / 1000) * (0.2 + i * 0.1)) % (2 * Math.PI);
+
+    ctx.save();
+    ctx.rotate(rotation);
     ctx.beginPath();
-    ctx.arc(player.x, player.y, shieldRadius, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(0,150,255,0.5)";
-    ctx.lineWidth = 4;
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(0, 180, 255, ${0.15 + i * 0.1})`;
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 25;
+    ctx.shadowColor = "rgba(0, 200, 255, 0.4)";
     ctx.stroke();
+    ctx.restore();
   }
+
+  // === Icoontje in het midden van speler
+  if (shieldIcon.complete && shieldIcon.naturalWidth !== 0) {
+    const iconSize = player.size * 1.2;
+    ctx.globalAlpha = 0.95;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = "rgba(0, 200, 255, 0.5)";
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(
+      shieldIcon,
+      -iconSize / 2,
+      -iconSize / 2,
+      iconSize,
+      iconSize
+    );
+  }
+
+  ctx.restore();
 }
 
 function drawDepthFog(camX, camY, zoom) {
@@ -471,32 +610,21 @@ function drawDepthFog(camX, camY, zoom) {
 function drawSpotlight() {
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
-  const spotlight = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 300);
-  spotlight.addColorStop(0, "rgba(255,255,200,0.3)");
-  spotlight.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = spotlight;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.restore();
-}
 
-function drawBeamCone() {
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
-  ctx.save();
-  ctx.translate(centerX, centerY);
-  ctx.rotate(player.angle);
-  const coneGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 350);
-  coneGradient.addColorStop(0, "rgba(255, 255, 180, 0.25)");
-  coneGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-  ctx.fillStyle = coneGradient;
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(200, -100);
-  ctx.lineTo(200, 100);
-  ctx.closePath();
-  ctx.fill();
+  // Gewoon in het midden van de hitbox — géén angle of offset
+  const x = player.x;
+  const y = player.y;
+
+  const spotlight = ctx.createRadialGradient(
+    x, y, 0,
+    x, y, 250
+  );
+  spotlight.addColorStop(0, "rgba(255,255,200,0.25)");
+  spotlight.addColorStop(1, "rgba(0,0,0,0)");
+
+  ctx.fillStyle = spotlight;
+  ctx.fillRect(x - 250, y - 250, 500, 500);
+
   ctx.restore();
 }
 
@@ -539,9 +667,9 @@ function draw() {
   currentZoom += (targetZoom - currentZoom) * 0.08;
   const zoom = currentZoom;
 
-  const camX = player.x - (canvas.width / 2) / zoom;
-  const camY = player.y - (canvas.height / 2) / zoom;
-
+  const camX = player.x + camOffset.x - (canvas.width / 2) / zoom;
+  const camY = player.y + camOffset.y - (canvas.height / 2) / zoom;
+  
   ctx.save();
   ctx.setTransform(zoom, 0, 0, zoom, -camX * zoom, -camY * zoom);
 
@@ -554,12 +682,11 @@ function draw() {
   drawPlayerTrail();
   drawPlayer();
   drawShield();
+  drawSpotlight();
   drawDepthFog(camX, camY, zoom);
 
   ctx.restore(); // einde camera
 
-  drawSpotlight();
-  drawBeamCone();
   drawSpeedOverlay();
   drawVignette();
   drawHUD();

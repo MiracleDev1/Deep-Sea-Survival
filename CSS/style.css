@@ -1,4 +1,4 @@
-/* Canvas en layout */
+/* Algemene layout */
 html, body {
   margin: 0;
   padding: 0;
@@ -6,25 +6,26 @@ html, body {
   background: #000;
   font-family: 'Segoe UI', sans-serif;
 }
+
 canvas {
   display: block;
   background: radial-gradient(circle at center, #0b1e2c 0%, #000 100%);
 }
 
-/* HUD rechtsboven */
+/* HUD linksboven */
 #hud {
   position: absolute;
   top: 10px;
   left: 20px;
   font-size: 18px;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0, 0, 0, 0.4);
   padding: 6px 12px;
   border-radius: 6px;
   color: white;
   z-index: 2;
 }
 
-/* Skill buttons rechts onder */
+/* Skill knoppen rechtsonder */
 #skillButtons {
   position: absolute;
   bottom: 20px;
@@ -34,6 +35,7 @@ canvas {
   gap: 10px;
   z-index: 2;
 }
+
 .skill-btn {
   background: rgba(255, 255, 255, 0.1);
   border: 2px solid white;
@@ -44,11 +46,12 @@ canvas {
   border-radius: 6px;
   transition: 0.3s;
 }
+
 .skill-btn:hover {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* Start menu */
+/* Startmenu */
 #menu {
   position: absolute;
   width: 100%;
@@ -61,6 +64,12 @@ canvas {
   flex-direction: column;
   z-index: 3;
 }
+
+#menu h1 {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+
 #menu button {
   margin-top: 20px;
   padding: 12px 24px;
@@ -71,10 +80,6 @@ canvas {
   border-radius: 8px;
   cursor: pointer;
 }
-#menu h1 {
-  font-size: 48px;
-  margin-bottom: 10px;
-}
 
 /* Pauzemenu */
 #pauseMenu {
@@ -82,7 +87,7 @@ canvas {
   position: absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0, 0, 0, 0.8);
   color: white;
   font-family: 'Segoe UI', sans-serif;
   z-index: 5;
@@ -91,6 +96,7 @@ canvas {
   align-items: center;
   justify-content: center;
 }
+
 #pauseMenu button {
   margin-top: 10px;
   padding: 10px 20px;
