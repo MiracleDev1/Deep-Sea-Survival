@@ -9,7 +9,13 @@ html, body {
 
 canvas {
   display: block;
-  background: radial-gradient(circle at center, #0b1e2c 0%, #000 100%);
+  /* Mooie verticale overgang: lucht → water → diepzee */
+  background: linear-gradient(to bottom,
+    #87CEEB 0%,       /* Lucht */
+    #5BC0EB 10%,      /* Wateroppervlak */
+    #0b1e2c 60%,      /* Middendiepte */
+    #000 100%         /* Donkere diepte */
+  );
 }
 
 /* HUD linksboven */

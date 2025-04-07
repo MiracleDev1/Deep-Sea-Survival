@@ -18,19 +18,41 @@ let isPaused = false;
 const fishFrames = [];
 const totalFrames = 30;
 let loadedFrames = 0;
+let structuredDecorations = [];
 
 let camOffset = { x: 0, y: 0 };
 
 const shieldIcon = new Image();
-shieldIcon.src = "../Assets/images/shield.png";
+shieldIcon.src = "../Assets/images/Shield.png";
+
+let seaweedImagesLoaded = 0;
+
+const seaweedImage1 = new Image();
+seaweedImage1.src = "../Assets/Images/Sea_Weed1.png";
+seaweedImage1.onload = checkSeaweedImagesLoaded;
+
+const seaweedImage2 = new Image();
+seaweedImage2.src = "../Assets/Images/Sea_Weed2.png";
+seaweedImage2.onload = checkSeaweedImagesLoaded;
+
+const seaweedImage3 = new Image();
+seaweedImage3.src = "../Assets/Images/Sea_Weed3.png";
+seaweedImage3.onload = checkSeaweedImagesLoaded;
+
+function checkSeaweedImagesLoaded() {
+  seaweedImagesLoaded++;
+  if (seaweedImagesLoaded === 3 && loadedFrames === totalFrames) {
+    startGame(); // start pas als planten én visjes geladen zijn
+  }
+}
 
 for (let i = 100; i <= 129; i++) {
   const img = new Image();
   img.src = `../Assets/Images/Guppy_${i}.gif`;
   img.onload = () => {
     loadedFrames++;
-    if (loadedFrames === totalFrames) {
-      startGame();  // Start pas nadat alle afbeeldingen geladen zijn
+    if (loadedFrames === totalFrames && seaweedImagesLoaded === 3) {
+      startGame();    
     }
   };
   fishFrames.push(img);
@@ -128,9 +150,10 @@ function startGame() {
   if (menu) menu.style.display = "none";
 
   isGameRunning = true;
-
+  
   generateWalls();
   generateBorders();
+  generateStructuredDecorations();
   for (let i = 0; i < 30; i++) spawnEnemy();
 
   // Zorg dat speler niet in een muur zit
@@ -206,15 +229,14 @@ function updateCooldownUI() {
 // === Wereld en vijanden
 function generateWalls() {
   walls = [];
-  for (let i = 0; i < 40; i++) {
-    walls.push({
-      x: Math.random() * (WORLD_WIDTH - 300),
-      y: Math.random() * (WORLD_HEIGHT - 300),
-      w: 150 + Math.random() * 150,
-      h: 150 + Math.random() * 150,
-      color: "#2e2e2e"
-    });
-  }
+
+  // Bovenlaag zand
+  walls.push({ x: 0, y: 0, w: WORLD_WIDTH, h: 200, color: "#E5C07B" });
+
+  // --- Onderlaag (bodemstructuur)
+  walls.push({ x: 0, y: WORLD_HEIGHT - 400, w: WORLD_WIDTH, h: 400, color: "#A67C52" });
+
+  // ⛔ NIET meer: blokwalls links/rechts – we tekenen die straks visueel!
 }
 
 function generateBorders() {
@@ -222,6 +244,30 @@ function generateBorders() {
   walls.push({ x: 0, y: WORLD_HEIGHT - 100, w: WORLD_WIDTH, h: 100 }); // Bottom
   walls.push({ x: 0, y: 0, w: 100, h: WORLD_HEIGHT }); // Left
   walls.push({ x: WORLD_WIDTH - 100, y: 0, w: 100, h: WORLD_HEIGHT }); // Right
+}
+
+function generateStructuredDecorations() {
+  structuredDecorations = [];
+
+  const points = [
+    // Throughout the whole map
+    { x: 200, y: 300 }, { x: 300, y: 700 }, { x: 180, y: 1300 }, { x: 250, y: 1800 },
+    { x: 300, y: 2300 }, { x: 250, y: 2800 }, { x: 300, y: 3300 },
+    { x: 3800, y: 400 }, { x: 3700, y: 900 }, { x: 3850, y: 1600 },
+    { x: 3700, y: 2400 }, { x: 3800, y: 3000 }, { x: 3750, y: 3700 }, { x: 3900, y: 4500 },
+    { x: 1250, y: 1100 }, { x: 2050, y: 2000 }, { x: 1650, y: 3100 },
+    { x: 2250, y: 3900 }, { x: 1450, y: 4800 }
+  ];
+
+  const imgs = [seaweedImage1, seaweedImage2, seaweedImage3];
+
+  for (let i = 0; i < points.length; i++) {
+    structuredDecorations.push({
+      x: points[i].x,
+      y: points[i].y,
+      img: imgs[i % imgs.length]
+    });
+  }
 }
 
 function spawnEnemy() {
@@ -425,15 +471,22 @@ function drawBackground(camX, camY, zoom) {
 
 function drawParallaxPlants(camX, camY, zoom) {
   const layers = 3;
+  const density = 10;
+
   for (let i = 0; i < layers; i++) {
     const depth = 0.2 + i * 0.15;
-    const density = 20;
-    for (let j = 0; j < density; j++) {
-      const baseX = j * 400 + i * 100;
-      const baseY = j * 300 + i * 200;
 
-      const wiggleX = Math.sin(Date.now() / (1000 + i * 500) + j) * 40;
-      const wiggleY = Math.cos(Date.now() / (1200 + i * 400) + j) * 30;
+    for (let j = 0; j < density; j++) {
+      const seed = j + i * 100;
+
+      const baseX = (seededRandom(seed * 999) * WORLD_WIDTH);
+      const baseY = (seededRandom(seed * 123) * WORLD_HEIGHT);
+
+      // Wiggle: zeewier wiebelt (lichte draaiing, niet positie)
+      const sway = Math.sin(Date.now() / (1200 + i * 300) + seed) * 0.2;
+
+      const wiggleX = Math.sin(Date.now() / (1000 + i * 500) + seed) * 10;
+      const wiggleY = Math.cos(Date.now() / (1200 + i * 400) + seed) * 8;
 
       const x = baseX + wiggleX;
       const y = baseY + wiggleY;
@@ -441,12 +494,28 @@ function drawParallaxPlants(camX, camY, zoom) {
       const plantX = x - camX * depth;
       const plantY = y - camY * depth;
 
-      ctx.beginPath();
-      ctx.arc(plantX, plantY, 28 - i * 5, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(20, 100, 80, ${0.04 + i * 0.04})`;
-      ctx.fill();
+      const imgIndex = Math.floor(seededRandom(seed) * 3);
+      const plantImage = [seaweedImage1, seaweedImage2, seaweedImage3][imgIndex];
+
+      const scale = 0.5 + i * 0.2;
+      const size = 200 * scale;
+
+      ctx.save();
+      ctx.translate(plantX, plantY);
+      ctx.rotate(sway); // zacht wiegen
+      ctx.globalAlpha = 0.45 + i * 0.15;
+      ctx.shadowColor = "rgba(0, 255, 100, 0.15)";
+      ctx.shadowBlur = 10;
+      ctx.drawImage(plantImage, -size / 2, -size / 2, size, size);
+      ctx.shadowBlur = 0;
+      ctx.restore();
     }
   }
+}
+
+function seededRandom(seed) {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
 }
 
 function drawAmbientLights() {
@@ -472,6 +541,85 @@ function drawWalls() {
     ctx.fillStyle = wall.color;
     ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
   }
+}
+
+function drawStructuredDecorations() {
+  for (let d of structuredDecorations) {
+    ctx.save();
+    ctx.translate(d.x, d.y);
+    ctx.globalAlpha = 0.7;
+    ctx.drawImage(d.img, -30, -30, 80, 80);
+    ctx.restore();
+  }
+}
+
+function drawRockWalls() {
+  ctx.save();
+  ctx.fillStyle = "#3c3c3c"; // Donkergrijze rots
+
+  // Linker grillige wand
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, 1000);
+  ctx.lineTo(100, 1300);
+  ctx.lineTo(50, 1800);
+  ctx.lineTo(150, 2200);
+  ctx.lineTo(80, 2800);
+  ctx.lineTo(180, 3400);
+  ctx.lineTo(100, 4200);
+  ctx.lineTo(200, 5000);
+  ctx.lineTo(0, 6000);
+  ctx.lineTo(0, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Rechter grillige wand
+  ctx.beginPath();
+  ctx.moveTo(WORLD_WIDTH, 0);
+  ctx.lineTo(WORLD_WIDTH, 1000);
+  ctx.lineTo(WORLD_WIDTH - 100, 1300);
+  ctx.lineTo(WORLD_WIDTH - 50, 1800);
+  ctx.lineTo(WORLD_WIDTH - 150, 2200);
+  ctx.lineTo(WORLD_WIDTH - 80, 2800);
+  ctx.lineTo(WORLD_WIDTH - 180, 3400);
+  ctx.lineTo(WORLD_WIDTH - 100, 4200);
+  ctx.lineTo(WORLD_WIDTH - 200, 5000);
+  ctx.lineTo(WORLD_WIDTH, 6000);
+  ctx.lineTo(WORLD_WIDTH, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Centrale kloof (smalle diepe inkeping)
+  ctx.beginPath();
+  ctx.moveTo(WORLD_WIDTH / 2 - 250, 1000);
+  ctx.lineTo(WORLD_WIDTH / 2 - 100, 1500);
+  ctx.lineTo(WORLD_WIDTH / 2 - 180, 2200);
+  ctx.lineTo(WORLD_WIDTH / 2 - 120, 3000);
+  ctx.lineTo(WORLD_WIDTH / 2 - 150, 4000);
+  ctx.lineTo(WORLD_WIDTH / 2, 4600);
+  ctx.lineTo(WORLD_WIDTH / 2 + 150, 4000);
+  ctx.lineTo(WORLD_WIDTH / 2 + 120, 3000);
+  ctx.lineTo(WORLD_WIDTH / 2 + 180, 2200);
+  ctx.lineTo(WORLD_WIDTH / 2 + 100, 1500);
+  ctx.lineTo(WORLD_WIDTH / 2 + 250, 1000);
+  ctx.lineTo(WORLD_WIDTH / 2 + 250, 6000);
+  ctx.lineTo(WORLD_WIDTH / 2 - 250, 6000);
+  ctx.closePath();
+  ctx.fill();
+
+  // Zand bovenaan
+  ctx.fillStyle = "#e5c07b";
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, 120);
+  ctx.lineTo(WORLD_WIDTH / 2 - 400, 160);
+  ctx.lineTo(WORLD_WIDTH / 2 + 400, 160);
+  ctx.lineTo(WORLD_WIDTH, 120);
+  ctx.lineTo(WORLD_WIDTH, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
 }
 
 function drawEnemies() {
@@ -678,6 +826,8 @@ function draw() {
   drawParallaxPlants(camX, camY, zoom);
   drawAmbientLights();
   drawWalls();
+  drawRockWalls(); // ← tekent de uitstekende randen
+  drawStructuredDecorations();
   drawEnemies();
   drawPlayerTrail();
   drawPlayer();
