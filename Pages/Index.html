@@ -1,323 +1,105 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="nl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Fish Shop</title>
-<style>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home</title>
+  <style>
     body {
-
-      background: radial-gradient(ellipse at center, #003d66 0%, #001f33 100%);
-
+      background: url('image 2.png') no-repeat center center fixed;
+      background-size: cover;
       font-family: Arial, sans-serif;
-
       color: white;
-
       margin: 0;
-
       padding: 0;
-
-    }
- 
-    header {
-
       display: flex;
-
-      justify-content: space-between;
-
+      flex-direction: column;
       align-items: center;
-
-      padding: 20px;
-
-      background-color: #002b4d;
-
-    }
- 
-    .nav-buttons button {
-
-      margin-left: 10px;
-
-      padding: 10px 20px;
-
-      background-color: #006699;
-
-      border: none;
-
-      border-radius: 10px;
-
-      color: white;
-
-      cursor: pointer;
-
-      font-weight: bold;
-
-    }
- 
-    .coins-display {
-
-      font-size: 18px;
-
-    }
- 
-    .shop-container {
-
-      display: flex;
-
       justify-content: center;
-
-      align-items: center;
-
-      padding: 50px;
-
-      gap: 20px;
-
-    }
- 
-    .card {
-
-      background-color: #004d80;
-
-      border-radius: 20px;
-
-      padding: 20px;
-
+      height: 100vh;
       text-align: center;
-
-      width: 200px;
-
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-
     }
- 
-    .card img {
 
-      width: 100px;
-
-      margin-bottom: 15px;
-
+    h1 {
+      font-size: 48px;
+      margin-bottom: 30px;
+      text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7);
     }
- 
-    .name {
 
-      font-size: 20px;
-
-      font-weight: bold;
-
-      margin-bottom: 5px;
-
+    .nav-buttons {
+      display: flex;
+      gap: 20px;
     }
- 
-    .desc {
 
-      font-size: 14px;
-
-      margin-bottom: 20px;
-
-    }
- 
-    .btn {
-
-      padding: 10px;
-
+    .nav-buttons button {
+      padding: 15px 30px;
+      background-color: #006699;
       border: none;
-
       border-radius: 10px;
-
+      color: white;
       cursor: pointer;
-
+      font-size: 18px;
       font-weight: bold;
-
-      font-size: 14px;
-
     }
- 
-    .btn-inuse {
 
-      background-color: #003366;
-
-      color: white;
-
+    .coins-display {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 20px;
     }
- 
-    .btn-unlock {
 
-      background: linear-gradient(to right, #ffa500, #ff4500);
+    /* Media Queries */
+    @media screen and (max-width: 768px) {
+      body {
+        background-size: auto;
+      }
 
-      color: white;
+      h1 {
+        font-size: 36px;
+      }
 
+      .nav-buttons button {
+        padding: 12px 20px;
+      }
     }
- 
-    .locked {
 
-      background-color: #002233;
+    @media screen and (max-width: 480px) {
+      h1 {
+        font-size: 28px;
+      }
 
-      opacity: 0.5;
-
+      .nav-buttons button {
+        padding: 10px 15px;
+      }
     }
- 
-    .locked .btn {
-
-      background-color: #333;
-
-      color: #888;
-
-    }
-</style>
+  </style>
 </head>
 <body>
-<header>
-<div class="coins-display">Coins: <span id="coin-count">0</span> 🪙</div>
-<div class="nav-buttons">
-<button onclick="goHome()">Home</button>
-<button onclick="goToShop()">Shop</button>
-<button onclick="earnCoins()">+10 Coins</button>
-</div>
-</header>
- 
-  <div class="shop-container">
-<div class="card">
-<img src="https://img.icons8.com/color/96/000000/fish.png" alt="guppy" />
-<div class="name">Guppy</div>
-<div class="desc">Speed Boost</div>
-<button class="btn btn-inuse" onclick="setActiveFish('guppy')" id="guppy-btn">In Use</button>
-</div>
- 
-    <div class="card">
-<img src="https://img.icons8.com/color/96/000000/fish.png" alt="makreel" />
-<div class="name">Makreel</div>
-<div class="desc">Dash</div>
-<button class="btn btn-unlock" id="unlock-makreel">Unlock for 250 🪙</button>
-</div>
- 
-    <div class="card locked">
-<img src="https://img.icons8.com/ios-filled/100/000000/fish.png" alt="tonijn" />
-<div class="name">Tonijn</div>
-<div class="desc">Requires Level 40</div>
-<button class="btn">🔒 Locked</button>
-</div>
-</div>
- 
+  <div class="coins-display">Coins: <span id="coin-count">0</span> 🪙</div>
+
+  <h1>Welkom bij Fish Game</h1>
+  <div class="nav-buttons">
+    <button onclick="goToGame()">Start</button>
+    <button onclick="goToAquarium()">Aquarium</button>
+    <button onclick="goToShop()">Shop</button>
+  </div>
+
   <script>
-
     let coins = parseInt(localStorage.getItem('coins')) || 0;
+    document.getElementById('coin-count').innerText = coins;
 
-    let activeFish = localStorage.getItem('activeFish') || 'guppy';
-
-    let makreelUnlocked = localStorage.getItem('makreelUnlocked') === 'true';
- 
-    function updateCoinDisplay() {
-
-      document.getElementById('coin-count').innerText = coins;
-
+    function goToGame() {
+      window.location.href = 'game.html';
     }
- 
-    function earnCoins() {
 
-      coins += 10;
-
-      localStorage.setItem('coins', coins);
-
-      updateCoinDisplay();
-
+    function goToAquarium() {
+      window.location.href = 'aquarium.html';
     }
- 
-    function setActiveFish(fish) {
 
-      activeFish = fish;
-
-      localStorage.setItem('activeFish', fish);
-
-      updateFishButtons();
-
-    }
- 
-    function updateFishButtons() {
-
-      const guppyBtn = document.getElementById('guppy-btn');
-
-      const makreelBtn = document.getElementById('unlock-makreel');
- 
-      if (activeFish === 'guppy') {
-
-        guppyBtn.innerText = 'In Use';
-
-        guppyBtn.className = 'btn btn-inuse';
-
-        if (makreelUnlocked) {
-
-          makreelBtn.innerText = 'Use';
-
-          makreelBtn.className = 'btn btn-unlock';
-
-        }
-
-      } else if (activeFish === 'makreel') {
-
-        guppyBtn.innerText = 'Use';
-
-        guppyBtn.className = 'btn btn-unlock';
-
-        makreelBtn.innerText = 'In Use';
-
-        makreelBtn.className = 'btn btn-inuse';
-
-      }
-
-    }
- 
-    document.getElementById('unlock-makreel').addEventListener('click', function () {
-
-      if (!makreelUnlocked) {
-
-        if (coins >= 250) {
-
-          alert('Makreel unlocked!');
-
-          coins -= 250;
-
-          localStorage.setItem('coins', coins);
-
-          makreelUnlocked = true;
-
-          localStorage.setItem('makreelUnlocked', true);
-
-          setActiveFish('makreel');
-
-          updateCoinDisplay();
-
-        } else {
-
-          alert('Not enough coins!');
-
-        }
-
-      } else {
-
-        setActiveFish('makreel');
-
-      }
-
-    });
- 
-    function goHome() {
-
-      window.location.href = 'home.html';
-
-    }
- 
     function goToShop() {
-
       window.location.href = 'shop.html';
-
     }
- 
-    // Init
-
-    updateCoinDisplay();
-
-    updateFishButtons();
-</script>
+  </script>
 </body>
 </html>
- 

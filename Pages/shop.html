@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fish Selection Screen</title>
+  <style>
+    body {
+      background: url('image 2.png') no-repeat center center fixed;
+      background-size: cover;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7);
+    }
+
+    .coins-display {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+    }
+
+    .coins-display span {
+      margin-right: 5px;
+    }
+
+    .container {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .fish-card {
+      background-color: rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
+      width: 200px;
+      padding: 20px;
+      border: 2px solid #ffffff;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+      margin: 10px;
+      transition: transform 0.3s ease;
+      text-align: center;
+    }
+
+    .fish-card:hover {
+      transform: scale(1.05);
+    }
+
+    .fish-card img {
+      width: 100px;
+      margin-bottom: 15px;
+    }
+
+    .fish-card h2 {
+      font-size: 20px;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+
+    .fish-card .desc {
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .fish-card .btn {
+      padding: 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .fish-card .btn-inuse {
+      background-color: #003366;
+      color: white;
+    }
+
+    .fish-card .btn-unlock {
+      background: linear-gradient(to right, #ffa500, #ff4500);
+      color: white;
+    }
+
+    .fish-card.locked {
+      background-color: #002233;
+      opacity: 0.5;
+    }
+
+    .fish-card.locked .btn {
+      background-color: #333;
+      color: #888;
+    }
+
+    .back-button {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      padding: 10px 20px;
+      background-color: #006699;
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .back-button:hover {
+      background-color: #004d66;
+    }
+
+    /* Media Queries */
+    @media screen and (max-width: 768px) {
+      body {
+        background-size: auto;
+      }
+      h1 {
+        font-size: 36px;
+      }
+      .fish-card {
+        width: 160px;
+      }
+    }
+
+    @media screen and (max-width: 480px) {
+      h1 {
+        font-size: 28px;
+      }
+      .fish-card {
+        width: 130px;
+      }
+      .back-button {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Coin Display in the Top Right -->
+  <div class="coins-display">
+    <span id="coin-count">0</span> 🪙
+  </div>
+
+  <button class="back-button" onclick="goBack()">Back</button>
+  
+  <h1>Fish Shop</h1>
+
+  <div class="container">
+    <!-- Guppy Card -->
+    <div class="fish-card">
+      <img src="https://img.icons8.com/color/96/000000/fish.png" alt="Guppy">
+      <h2>Guppy</h2>
+      <div class="desc">Ability: Speed Boost</div>
+      <button class="btn btn-inuse" id="guppy-btn" onclick="setActiveFish('guppy')">In Use</button>
+    </div>
+
+    <!-- Makreel Card -->
+    <div class="fish-card">
+      <img src="https://img.icons8.com/color/96/000000/fish.png" alt="Makreel">
+      <h2>Makreel</h2>
+      <div class="desc">Ability: Dash</div>
+      <button class="btn btn-unlock" id="unlock-makreel" onclick="unlockFish('makreel')">Unlock for 250 🪙</button>
+    </div>
+
+    <!-- Tonijn Card (Locked) -->
+    <div class="fish-card locked" id="tonijn-card">
+      <img src="https://img.icons8.com/ios-filled/100/000000/fish.png" alt="Tonijn">
+      <h2>Tonijn</h2>
+      <div class="desc">Ability: ???</div>
+      <button class="btn" id="tonijn-btn" disabled>🔒 Locked</button>
+    </div>
+  </div>
+
+  <script>
+    let coins = parseInt(localStorage.getItem('coins')) || 0;
+    let activeFish = localStorage.getItem('activeFish') || 'guppy';
+    let makreelUnlocked = localStorage.getItem('makreelUnlocked') === 'true';
+
+    function updateCoinDisplay() {
+      document.getElementById('coin-count').innerText = coins;
+    }
+
+    function unlockFish(fish) {
+      if (fish === 'makreel' && !makreelUnlocked) {
+        if (coins >= 250) {
+          alert('Makreel unlocked!');
+          coins -= 250;
+          localStorage.setItem('coins', coins);
+          makreelUnlocked = true;
+          localStorage.setItem('makreelUnlocked', true);
+          document.getElementById('unlock-makreel').innerText = 'Use';
+          updateCoinDisplay();
+        } else {
+          alert('Not enough coins!');
+        }
+      }
+    }
+
+    function setActiveFish(fish) {
+      activeFish = fish;
+      localStorage.setItem('activeFish', fish);
+      updateFishButtons();
+    }
+
+    function updateFishButtons() {
+      if (activeFish === 'guppy') {
+        document.getElementById('guppy-btn').innerText = 'In Use';
+        document.getElementById('guppy-btn').className = 'btn btn-inuse';
+        if (makreelUnlocked) {
+          document.getElementById('unlock-makreel').innerText = 'Use';
+          document.getElementById('unlock-makreel').className = 'btn btn-unlock';
+        }
+      } else if (activeFish === 'makreel') {
+        document.getElementById('guppy-btn').innerText = 'Use';
+        document.getElementById('guppy-btn').className = 'btn btn-unlock';
+        document.getElementById('unlock-makreel').innerText = 'In Use';
+        document.getElementById('unlock-makreel').className = 'btn btn-inuse';
+      }
+    }
+
+    // Initialize
+    updateCoinDisplay();
+    updateFishButtons();
+
+    function goBack() {
+      window.history.back();
+    }
+
+  </script>
+</body>
+</html>
